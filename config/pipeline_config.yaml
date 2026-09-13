@@ -1,0 +1,39 @@
+# Logistics Data Engineering Platform Configuration
+
+gcs:
+  bucket: gs://logistic-data-01
+  bucket_name: logistic-data-01
+  zones:
+    raw: raw/
+    bronze: bronze/
+    silver: silver/
+    gold_staging: gold_staging/
+    quarantine: quarantine/
+    manifests: manifests/
+
+bigquery:
+  project: logistic-data-508513
+  gold_dataset: logistics_gold
+  audit_dataset: logistics_audit
+
+batch:
+  control_table: logistics_audit.batch_control
+  max_rejection_rate_pct: 20.0
+  batches:
+    - id: "batch_001"
+      year: 2022
+      description: "Year 1 (2022) Historical Baseline"
+    - id: "batch_002"
+      year: 2023
+      description: "Year 2 (2023) Historical Incremental"
+    - id: "batch_003"
+      year: 2024
+      description: "Year 3 (2024+) Historical Incremental and Recent"
+
+paths:
+  raw_data_dir: "data/raw"
+  batches_dir: "data/batches"
+  gcp_key_path: "config/gcp-key.json"
+
+pipeline:
+  spark_master: "spark://spark-master:7077"

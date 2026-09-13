@@ -6,7 +6,6 @@ def test_gcs_connection():
     # We include the GCS connector package which is required to read gs:// paths
     spark = SparkSession.builder \
         .appName("GCSTestConnection") \
-        .config("spark.jars.packages", "com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.5") \
         .config("spark.hadoop.fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem") \
         .config("spark.hadoop.fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS") \
         .getOrCreate()
@@ -20,8 +19,8 @@ def test_gcs_connection():
     print(f"Using Google Credentials from: {cred_path}")
     
     # Replace this with your actual bucket name
-    bucket_name = "logistics-data-platform" # Ensure this matches your actual bucket
-    test_path = f"gs://{bucket_name}/raw/"
+    bucket_name = "logistic-data-01"
+    test_path = f"gs://{bucket_name}/raw/loads/loads_batch_001.csv"
     
     try:
         print(f"Attempting to list or access: {test_path}")
