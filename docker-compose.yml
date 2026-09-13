@@ -1,0 +1,27 @@
+services:
+  spark-master:
+    image: apache/spark:latest
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/spark/conf/gcp-key.json
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./config/gcp-key.json:/opt/spark/conf/gcp-key.json:ro
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./scripts:/app/scripts
+
+  spark-worker:
+    image: apache/spark:latest
+    command: /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/opt/spark/conf/gcp-key.json
+    volumes:
+      - ./config/gcp-key.json:/opt/spark/conf/gcp-key.json:ro
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./scripts:/app/scripts
