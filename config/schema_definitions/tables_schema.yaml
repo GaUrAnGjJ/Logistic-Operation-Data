@@ -1,0 +1,272 @@
+# Schema Definitions for all 14 Logistics Tables
+# Maps each dataset to its primary keys, foreign keys, and Spark/BigQuery compatible data types.
+
+version: "1.0"
+
+tables:
+  customers:
+    description: "Customer accounts, contract details, credit terms, and revenue potential."
+    layer_type: "dimension"
+    primary_keys: ["customer_id"]
+    foreign_keys: []
+    columns:
+      customer_id: { type: "string", nullable: false }
+      customer_name: { type: "string", nullable: false }
+      customer_type: { type: "string", nullable: false }
+      credit_terms_days: { type: "integer", nullable: false }
+      primary_freight_type: { type: "string", nullable: false }
+      account_status: { type: "string", nullable: false }
+      contract_start_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      annual_revenue_potential: { type: "integer", nullable: false }
+
+  drivers:
+    description: "Fleet driver master profiles, CDL license, employment lifecycle, and experience."
+    layer_type: "dimension"
+    primary_keys: ["driver_id"]
+    foreign_keys: []
+    columns:
+      driver_id: { type: "string", nullable: false }
+      first_name: { type: "string", nullable: false }
+      last_name: { type: "string", nullable: false }
+      hire_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      termination_date: { type: "date", nullable: true, date_format: "yyyy-MM-dd" }
+      license_number: { type: "string", nullable: false }
+      license_state: { type: "string", nullable: false }
+      date_of_birth: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      home_terminal: { type: "string", nullable: false }
+      employment_status: { type: "string", nullable: false }
+      cdl_class: { type: "string", nullable: false }
+      years_experience: { type: "integer", nullable: false }
+
+  facilities:
+    description: "Terminal and warehouse facility locations, dock doors, operating hours, and coordinates."
+    layer_type: "dimension"
+    primary_keys: ["facility_id"]
+    foreign_keys: []
+    columns:
+      facility_id: { type: "string", nullable: false }
+      facility_name: { type: "string", nullable: false }
+      facility_type: { type: "string", nullable: false }
+      city: { type: "string", nullable: false }
+      state: { type: "string", nullable: false }
+      latitude: { type: "double", nullable: false }
+      longitude: { type: "double", nullable: false }
+      dock_doors: { type: "integer", nullable: false }
+      operating_hours: { type: "string", nullable: false }
+
+  routes:
+    description: "Origin-destination freight corridors with mileage, base rates, and expected transit days."
+    layer_type: "dimension"
+    primary_keys: ["route_id"]
+    foreign_keys: []
+    columns:
+      route_id: { type: "string", nullable: false }
+      origin_city: { type: "string", nullable: false }
+      origin_state: { type: "string", nullable: false }
+      destination_city: { type: "string", nullable: false }
+      destination_state: { type: "string", nullable: false }
+      typical_distance_miles: { type: "integer", nullable: false }
+      base_rate_per_mile: { type: "double", nullable: false }
+      fuel_surcharge_rate: { type: "double", nullable: false }
+      typical_transit_days: { type: "integer", nullable: false }
+
+  trailers:
+    description: "Fleet trailer inventory detailing types, lengths, model year, VIN, and status."
+    layer_type: "dimension"
+    primary_keys: ["trailer_id"]
+    foreign_keys: []
+    columns:
+      trailer_id: { type: "string", nullable: false }
+      trailer_number: { type: "integer", nullable: false }
+      trailer_type: { type: "string", nullable: false }
+      length_feet: { type: "integer", nullable: false }
+      model_year: { type: "integer", nullable: false }
+      vin: { type: "string", nullable: false }
+      acquisition_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      status: { type: "string", nullable: false }
+      current_location: { type: "string", nullable: false }
+
+  trucks:
+    description: "Tractor power unit inventory, make, model year, VIN, fuel capacity, and assigned terminal."
+    layer_type: "dimension"
+    primary_keys: ["truck_id"]
+    foreign_keys: []
+    columns:
+      truck_id: { type: "string", nullable: false }
+      unit_number: { type: "integer", nullable: false }
+      make: { type: "string", nullable: false }
+      model_year: { type: "integer", nullable: false }
+      vin: { type: "string", nullable: false }
+      acquisition_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      acquisition_mileage: { type: "integer", nullable: false }
+      fuel_type: { type: "string", nullable: false }
+      tank_capacity_gallons: { type: "integer", nullable: false }
+      status: { type: "string", nullable: false }
+      home_terminal: { type: "string", nullable: false }
+
+  loads:
+    description: "Freight contracts, weight, piece count, revenue, surcharges, and customer booking."
+    layer_type: "fact"
+    primary_keys: ["load_id"]
+    foreign_keys:
+      - { column: "customer_id", parent_table: "customers", parent_column: "customer_id" }
+      - { column: "route_id", parent_table: "routes", parent_column: "route_id" }
+    columns:
+      load_id: { type: "string", nullable: false }
+      customer_id: { type: "string", nullable: false }
+      route_id: { type: "string", nullable: false }
+      load_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      load_type: { type: "string", nullable: false }
+      weight_lbs: { type: "integer", nullable: false }
+      pieces: { type: "integer", nullable: false }
+      revenue: { type: "double", nullable: false }
+      fuel_surcharge: { type: "double", nullable: false }
+      accessorial_charges: { type: "integer", nullable: false }
+      load_status: { type: "string", nullable: false }
+      booking_type: { type: "string", nullable: false }
+
+  trips:
+    description: "Trip dispatches linking loads to drivers, trucks, trailers with miles and fuel consumption."
+    layer_type: "fact"
+    primary_keys: ["trip_id"]
+    foreign_keys:
+      - { column: "load_id", parent_table: "loads", parent_column: "load_id" }
+      - { column: "driver_id", parent_table: "drivers", parent_column: "driver_id", nullable: true }
+      - { column: "truck_id", parent_table: "trucks", parent_column: "truck_id", nullable: true }
+      - { column: "trailer_id", parent_table: "trailers", parent_column: "trailer_id", nullable: true }
+    columns:
+      trip_id: { type: "string", nullable: false }
+      load_id: { type: "string", nullable: false }
+      driver_id: { type: "string", nullable: true }
+      truck_id: { type: "string", nullable: true }
+      trailer_id: { type: "string", nullable: true }
+      dispatch_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      actual_distance_miles: { type: "integer", nullable: false }
+      actual_duration_hours: { type: "double", nullable: false }
+      fuel_gallons_used: { type: "double", nullable: false }
+      average_mpg: { type: "double", nullable: false }
+      idle_time_hours: { type: "double", nullable: false }
+      trip_status: { type: "string", nullable: false }
+
+  delivery_events:
+    description: "Milestone events tracking pickup/delivery times, detention duration, and on-time performance."
+    layer_type: "fact"
+    primary_keys: ["event_id"]
+    foreign_keys:
+      - { column: "load_id", parent_table: "loads", parent_column: "load_id" }
+      - { column: "trip_id", parent_table: "trips", parent_column: "trip_id" }
+      - { column: "facility_id", parent_table: "facilities", parent_column: "facility_id" }
+    columns:
+      event_id: { type: "string", nullable: false }
+      load_id: { type: "string", nullable: false }
+      trip_id: { type: "string", nullable: false }
+      event_type: { type: "string", nullable: false }
+      facility_id: { type: "string", nullable: false }
+      scheduled_datetime: { type: "timestamp", nullable: false, timestamp_format: "yyyy-MM-dd HH:mm:ss[.SSSSSS]" }
+      actual_datetime: { type: "timestamp", nullable: false, timestamp_format: "yyyy-MM-dd HH:mm:ss[.SSSSSS]" }
+      detention_minutes: { type: "integer", nullable: false }
+      on_time_flag: { type: "boolean", nullable: false }
+      location_city: { type: "string", nullable: false }
+      location_state: { type: "string", nullable: false }
+
+  fuel_purchases:
+    description: "Fuel card transactions recording gallons, price per gallon, cost, and location."
+    layer_type: "fact"
+    primary_keys: ["fuel_purchase_id"]
+    foreign_keys:
+      - { column: "trip_id", parent_table: "trips", parent_column: "trip_id" }
+      - { column: "truck_id", parent_table: "trucks", parent_column: "truck_id", nullable: true }
+      - { column: "driver_id", parent_table: "drivers", parent_column: "driver_id", nullable: true }
+    columns:
+      fuel_purchase_id: { type: "string", nullable: false }
+      trip_id: { type: "string", nullable: false }
+      truck_id: { type: "string", nullable: true }
+      driver_id: { type: "string", nullable: true }
+      purchase_date: { type: "timestamp", nullable: false, timestamp_format: "yyyy-MM-dd HH:mm:ss" }
+      location_city: { type: "string", nullable: false }
+      location_state: { type: "string", nullable: false }
+      gallons: { type: "double", nullable: false }
+      price_per_gallon: { type: "double", nullable: false }
+      total_cost: { type: "double", nullable: false }
+      fuel_card_number: { type: "string", nullable: false }
+
+  maintenance_records:
+    description: "Preventive and corrective maintenance events, labor/parts costs, and asset downtime."
+    layer_type: "fact"
+    primary_keys: ["maintenance_id"]
+    foreign_keys:
+      - { column: "truck_id", parent_table: "trucks", parent_column: "truck_id" }
+    columns:
+      maintenance_id: { type: "string", nullable: false }
+      truck_id: { type: "string", nullable: false }
+      maintenance_date: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      maintenance_type: { type: "string", nullable: false }
+      odometer_reading: { type: "integer", nullable: false }
+      labor_hours: { type: "double", nullable: false }
+      labor_cost: { type: "double", nullable: false }
+      parts_cost: { type: "double", nullable: false }
+      total_cost: { type: "double", nullable: false }
+      facility_location: { type: "string", nullable: false }
+      downtime_hours: { type: "double", nullable: false }
+      service_description: { type: "string", nullable: false }
+
+  safety_incidents:
+    description: "DOT violations, collisions, cargo/vehicle damages, fault determinations, and claim amounts."
+    layer_type: "fact"
+    primary_keys: ["incident_id"]
+    foreign_keys:
+      - { column: "trip_id", parent_table: "trips", parent_column: "trip_id" }
+      - { column: "truck_id", parent_table: "trucks", parent_column: "truck_id", nullable: true }
+      - { column: "driver_id", parent_table: "drivers", parent_column: "driver_id", nullable: true }
+    columns:
+      incident_id: { type: "string", nullable: false }
+      trip_id: { type: "string", nullable: false }
+      truck_id: { type: "string", nullable: true }
+      driver_id: { type: "string", nullable: true }
+      incident_date: { type: "timestamp", nullable: false, timestamp_format: "yyyy-MM-dd HH:mm:ss" }
+      incident_type: { type: "string", nullable: false }
+      location_city: { type: "string", nullable: false }
+      location_state: { type: "string", nullable: false }
+      at_fault_flag: { type: "boolean", nullable: false }
+      injury_flag: { type: "boolean", nullable: false }
+      vehicle_damage_cost: { type: "double", nullable: false }
+      cargo_damage_cost: { type: "double", nullable: false }
+      claim_amount: { type: "double", nullable: false }
+      preventable_flag: { type: "boolean", nullable: false }
+      description: { type: "string", nullable: false }
+
+  driver_monthly_metrics:
+    description: "Aggregated monthly operational performance per driver."
+    layer_type: "aggregate"
+    primary_keys: ["driver_id", "month"]
+    foreign_keys:
+      - { column: "driver_id", parent_table: "drivers", parent_column: "driver_id" }
+    columns:
+      driver_id: { type: "string", nullable: false }
+      month: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      trips_completed: { type: "integer", nullable: false }
+      total_miles: { type: "integer", nullable: false }
+      total_revenue: { type: "double", nullable: false }
+      average_mpg: { type: "double", nullable: false }
+      total_fuel_gallons: { type: "double", nullable: false }
+      on_time_delivery_rate: { type: "double", nullable: false }
+      average_idle_hours: { type: "double", nullable: false }
+
+  truck_utilization_metrics:
+    description: "Aggregated monthly fleet asset utilization, revenue, downtime, and rate."
+    layer_type: "aggregate"
+    primary_keys: ["truck_id", "month"]
+    foreign_keys:
+      - { column: "truck_id", parent_table: "trucks", parent_column: "truck_id" }
+    columns:
+      truck_id: { type: "string", nullable: false }
+      month: { type: "date", nullable: false, date_format: "yyyy-MM-dd" }
+      trips_completed: { type: "integer", nullable: false }
+      total_miles: { type: "integer", nullable: false }
+      total_revenue: { type: "double", nullable: false }
+      average_mpg: { type: "double", nullable: false }
+      maintenance_events: { type: "integer", nullable: false }
+      maintenance_cost: { type: "double", nullable: false }
+      downtime_hours: { type: "double", nullable: false }
+      utilization_rate: { type: "double", nullable: false }
+

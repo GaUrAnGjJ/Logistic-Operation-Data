@@ -1,0 +1,413 @@
+# Data Quality Rules Specification for Logistics Medallion Pipeline
+# Rules are evaluated during Bronze -> Silver processing.
+# Records failing an "ERROR" severity rule are routed to the Quarantine zone with detailed reasons.
+
+version: "1.0"
+
+rules:
+  customers:
+    - id: "cust_pk_not_null"
+      type: "not_null"
+      column: "customer_id"
+      description: "Customer ID must not be null"
+      severity: "ERROR"
+
+    - id: "cust_type_enum"
+      type: "enum"
+      column: "customer_type"
+      allowed_values: ["Dedicated", "Contract", "Spot"]
+      description: "Customer type must be one of: Dedicated, Contract, Spot"
+      severity: "ERROR"
+
+    - id: "cust_status_enum"
+      type: "enum"
+      column: "account_status"
+      allowed_values: ["Active", "Inactive"]
+      description: "Account status must be Active or Inactive"
+      severity: "ERROR"
+
+    - id: "cust_rev_potential_positive"
+      type: "range"
+      column: "annual_revenue_potential"
+      min: 0
+      description: "Annual revenue potential cannot be negative"
+      severity: "ERROR"
+
+  drivers:
+    - id: "driver_pk_not_null"
+      type: "not_null"
+      column: "driver_id"
+      description: "Driver ID must not be null"
+      severity: "ERROR"
+
+    - id: "driver_status_enum"
+      type: "enum"
+      column: "employment_status"
+      allowed_values: ["Active", "Terminated", "On Leave"]
+      description: "Employment status must be Active, Terminated, or On Leave"
+      severity: "ERROR"
+
+    - id: "driver_experience_range"
+      type: "range"
+      column: "years_experience"
+      min: 0
+      max: 60
+      description: "Years of experience must be between 0 and 60"
+      severity: "ERROR"
+
+    - id: "driver_hire_before_term"
+      type: "sql_expression"
+      expression: "termination_date IS NULL OR termination_date >= hire_date"
+      description: "Termination date must be on or after hire date"
+      severity: "ERROR"
+
+  facilities:
+    - id: "facility_pk_not_null"
+      type: "not_null"
+      column: "facility_id"
+      description: "Facility ID must not be null"
+      severity: "ERROR"
+
+    - id: "facility_type_enum"
+      type: "enum"
+      column: "facility_type"
+      allowed_values: ["Cross-Dock", "Distribution Center", "Terminal", "Warehouse"]
+      description: "Facility type must be valid"
+      severity: "ERROR"
+
+    - id: "facility_dock_doors_positive"
+      type: "range"
+      column: "dock_doors"
+      min: 1
+      max: 500
+      description: "Dock doors must be between 1 and 500"
+      severity: "ERROR"
+
+  routes:
+    - id: "route_pk_not_null"
+      type: "not_null"
+      column: "route_id"
+      description: "Route ID must not be null"
+      severity: "ERROR"
+
+    - id: "route_distance_positive"
+      type: "range"
+      column: "typical_distance_miles"
+      min: 1
+      max: 5000
+      description: "Route distance must be positive and within 5000 miles"
+      severity: "ERROR"
+
+    - id: "route_base_rate_positive"
+      type: "range"
+      column: "base_rate_per_mile"
+      min: 0.1
+      max: 50.0
+      description: "Base rate per mile must be reasonable positive amount"
+      severity: "ERROR"
+
+  trailers:
+    - id: "trailer_pk_not_null"
+      type: "not_null"
+      column: "trailer_id"
+      description: "Trailer ID must not be null"
+      severity: "ERROR"
+
+    - id: "trailer_type_enum"
+      type: "enum"
+      column: "trailer_type"
+      allowed_values: ["Refrigerated", "Dry Van"]
+      description: "Trailer type must be Dry Van or Refrigerated"
+      severity: "ERROR"
+
+    - id: "trailer_model_year_range"
+      type: "range"
+      column: "model_year"
+      min: 1990
+      max: 2030
+      description: "Trailer model year must be between 1990 and 2030"
+      severity: "ERROR"
+
+  trucks:
+    - id: "truck_pk_not_null"
+      type: "not_null"
+      column: "truck_id"
+      description: "Truck ID must not be null"
+      severity: "ERROR"
+
+    - id: "truck_status_enum"
+      type: "enum"
+      column: "status"
+      allowed_values: ["Active", "Maintenance", "Inactive"]
+      description: "Truck status must be Active, Maintenance, or Inactive"
+      severity: "ERROR"
+
+    - id: "truck_tank_capacity_range"
+      type: "range"
+      column: "tank_capacity_gallons"
+      min: 50
+      max: 500
+      description: "Tank capacity must be between 50 and 500 gallons"
+      severity: "ERROR"
+
+    - id: "truck_mileage_positive"
+      type: "range"
+      column: "acquisition_mileage"
+      min: 0
+      description: "Acquisition mileage cannot be negative"
+      severity: "ERROR"
+
+  loads:
+    - id: "load_pk_not_null"
+      type: "not_null"
+      column: "load_id"
+      description: "Load ID must not be null"
+      severity: "ERROR"
+
+    - id: "load_fk_customer_not_null"
+      type: "not_null"
+      column: "customer_id"
+      description: "Customer ID foreign key must not be null"
+      severity: "ERROR"
+
+    - id: "load_fk_route_not_null"
+      type: "not_null"
+      column: "route_id"
+      description: "Route ID foreign key must not be null"
+      severity: "ERROR"
+
+    - id: "load_type_enum"
+      type: "enum"
+      column: "load_type"
+      allowed_values: ["Dry Van", "Refrigerated"]
+      description: "Load type must be Dry Van or Refrigerated"
+      severity: "ERROR"
+
+    - id: "load_weight_positive"
+      type: "range"
+      column: "weight_lbs"
+      min: 1
+      max: 80000
+      description: "Weight must be between 1 and 80,000 lbs (legal limit)"
+      severity: "ERROR"
+
+    - id: "load_pieces_positive"
+      type: "range"
+      column: "pieces"
+      min: 1
+      description: "Piece count must be at least 1"
+      severity: "ERROR"
+
+    - id: "load_revenue_positive"
+      type: "range"
+      column: "revenue"
+      min: 0.01
+      description: "Freight revenue must be strictly positive"
+      severity: "ERROR"
+
+  trips:
+    - id: "trip_pk_not_null"
+      type: "not_null"
+      column: "trip_id"
+      description: "Trip ID must not be null"
+      severity: "ERROR"
+
+    - id: "trip_fk_load_not_null"
+      type: "not_null"
+      column: "load_id"
+      description: "Load ID foreign key must not be null"
+      severity: "ERROR"
+
+    - id: "trip_distance_positive"
+      type: "range"
+      column: "actual_distance_miles"
+      min: 0
+      max: 5000
+      description: "Actual distance must be non-negative and under 5000 miles"
+      severity: "ERROR"
+
+    - id: "trip_duration_positive"
+      type: "range"
+      column: "actual_duration_hours"
+      min: 0.0
+      max: 200.0
+      description: "Actual duration hours must be non-negative and realistic"
+      severity: "ERROR"
+
+    - id: "trip_fuel_positive"
+      type: "range"
+      column: "fuel_gallons_used"
+      min: 0.0
+      max: 1000.0
+      description: "Fuel gallons used must be non-negative"
+      severity: "ERROR"
+
+    - id: "trip_mpg_realistic"
+      type: "range"
+      column: "average_mpg"
+      min: 1.0
+      max: 25.0
+      description: "Average MPG for heavy vehicle must be between 1.0 and 25.0"
+      severity: "ERROR"
+
+  delivery_events:
+    - id: "event_pk_not_null"
+      type: "not_null"
+      column: "event_id"
+      description: "Event ID must not be null"
+      severity: "ERROR"
+
+    - id: "event_type_enum"
+      type: "enum"
+      column: "event_type"
+      allowed_values: ["Pickup", "Delivery"]
+      description: "Event type must be Pickup or Delivery"
+      severity: "ERROR"
+
+    - id: "event_detention_positive"
+      type: "range"
+      column: "detention_minutes"
+      min: 0
+      description: "Detention minutes cannot be negative"
+      severity: "ERROR"
+
+    - id: "event_dates_present"
+      type: "sql_expression"
+      expression: "scheduled_datetime IS NOT NULL AND actual_datetime IS NOT NULL"
+      description: "Scheduled and actual timestamps must both be populated"
+      severity: "ERROR"
+
+  fuel_purchases:
+    - id: "fuel_pk_not_null"
+      type: "not_null"
+      column: "fuel_purchase_id"
+      description: "Fuel purchase ID must not be null"
+      severity: "ERROR"
+
+    - id: "fuel_trip_not_null"
+      type: "not_null"
+      column: "trip_id"
+      description: "Associated trip ID must not be null"
+      severity: "ERROR"
+
+    - id: "fuel_gallons_positive"
+      type: "range"
+      column: "gallons"
+      min: 0.1
+      max: 400.0
+      description: "Gallons purchased must be between 0.1 and 400"
+      severity: "ERROR"
+
+    - id: "fuel_price_per_gal_positive"
+      type: "range"
+      column: "price_per_gallon"
+      min: 0.5
+      max: 15.0
+      description: "Price per gallon must be between $0.50 and $15.00"
+      severity: "ERROR"
+
+    - id: "fuel_total_cost_positive"
+      type: "range"
+      column: "total_cost"
+      min: 0.01
+      description: "Total fuel purchase cost must be positive"
+      severity: "ERROR"
+
+  maintenance_records:
+    - id: "maint_pk_not_null"
+      type: "not_null"
+      column: "maintenance_id"
+      description: "Maintenance ID must not be null"
+      severity: "ERROR"
+
+    - id: "maint_truck_not_null"
+      type: "not_null"
+      column: "truck_id"
+      description: "Truck ID must not be null"
+      severity: "ERROR"
+
+    - id: "maint_type_enum"
+      type: "enum"
+      column: "maintenance_type"
+      allowed_values: ["Inspection", "Tire", "Preventive", "Repair", "Transmission", "Brake", "Engine"]
+      description: "Maintenance type must be a recognized service category"
+      severity: "ERROR"
+
+    - id: "maint_cost_positive"
+      type: "range"
+      column: "total_cost"
+      min: 0.0
+      description: "Total maintenance cost cannot be negative"
+      severity: "ERROR"
+
+    - id: "maint_downtime_positive"
+      type: "range"
+      column: "downtime_hours"
+      min: 0.0
+      description: "Downtime hours cannot be negative"
+      severity: "ERROR"
+
+  safety_incidents:
+    - id: "incident_pk_not_null"
+      type: "not_null"
+      column: "incident_id"
+      description: "Incident ID must not be null"
+      severity: "ERROR"
+
+    - id: "incident_type_enum"
+      type: "enum"
+      column: "incident_type"
+      allowed_values: ["Accident", "Violation", "Equipment Damage", "Cargo Claim", "Injury"]
+      allowed_values: ["Accident", "Moving Violation", "DOT Violation", "Equipment Damage", "Customer Complaint"]
+      description: "Incident type must be a recognized safety classification"
+      severity: "ERROR"
+
+    - id: "incident_claim_positive"
+      type: "range"
+      column: "claim_amount"
+      min: 0.0
+      description: "Claim amount cannot be negative"
+      severity: "ERROR"
+
+  driver_monthly_metrics:
+    - id: "driver_metrics_pk_not_null"
+      type: "not_null"
+      column: "driver_id"
+      description: "Driver ID must not be null"
+      severity: "ERROR"
+
+    - id: "driver_metrics_month_not_null"
+      type: "not_null"
+      column: "month"
+      description: "Reporting month must not be null"
+      severity: "ERROR"
+
+    - id: "driver_otd_rate_range"
+      type: "range"
+      column: "on_time_delivery_rate"
+      min: 0.0
+      max: 1.0
+      description: "On-time delivery rate must be a percentage between 0.0 and 1.0"
+      severity: "ERROR"
+
+  truck_utilization_metrics:
+    - id: "truck_metrics_pk_not_null"
+      type: "not_null"
+      column: "truck_id"
+      description: "Truck ID must not be null"
+      severity: "ERROR"
+
+    - id: "truck_metrics_month_not_null"
+      type: "not_null"
+      column: "month"
+      description: "Reporting month must not be null"
+      severity: "ERROR"
+
+    - id: "truck_util_rate_range"
+      type: "range"
+      column: "utilization_rate"
+      min: 0.0
+      max: 1.0
+      description: "Utilization rate must be a percentage between 0.0 and 1.0"
+      severity: "ERROR"
+

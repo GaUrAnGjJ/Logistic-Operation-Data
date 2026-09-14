@@ -15,9 +15,13 @@ bigquery:
   project: logistic-data-508513
   gold_dataset: logistics_gold
   audit_dataset: logistics_audit
+  location: US
 
 batch:
   control_table: logistics_audit.batch_control
+  pipeline_audit_table: logistics_audit.pipeline_audit
+  rejection_log_table: logistics_audit.rejection_log
+  dq_metrics_table: logistics_audit.data_quality_metrics
   max_rejection_rate_pct: 20.0
   batches:
     - id: "batch_001"
@@ -30,10 +34,30 @@ batch:
       year: 2024
       description: "Year 3 (2024+) Historical Incremental and Recent"
 
+data_quality:
+  schema_definitions_path: "config/schema_definitions/tables_schema.yaml"
+  dq_rules_path: "config/dq_rules/quality_rules.yaml"
+  quarantine_enabled: true
+  fail_on_threshold: true
+
+notifications:
+  default_channel: "console" # Options: "console", "webhook", "email"
+  alert_on_rejection: true
+  alert_on_pipeline_failure: true
+  alert_on_batch_complete: true
+  webhook:
+    url: "" # Provide Slack/Discord/Teams webhook URL if channel is "webhook"
+  email:
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    sender_email: ""
+    recipient_emails: []
+
 paths:
   raw_data_dir: "data/raw"
   batches_dir: "data/batches"
   gcp_key_path: "config/gcp-key.json"
 
 pipeline:
-  spark_master: "spark://spark-master:7077"
+  spark_master: "local[*]" # Use "local[*]" or "spark://spark-master:7077"
+  app_name: "LogisticsMedallionPipeline"
