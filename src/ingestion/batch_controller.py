@@ -88,39 +88,61 @@ class BatchController:
         return False
 
     def register_batch_arrival(self, batch_id: str, manifest: dict):
-        """Register the arrival of batch files into batch_control as PENDING."""
+        """Register the arrival of batch files into batch_control as PENDING.
+
+        Uses standard SQL INSERT (non-streaming) so that subsequent DML UPDATE
+        statements in update_batch_status() work immediately without hitting the
+        BigQuery streaming buffer restriction (~90s lock on streamed rows).
+        """
         self.ensure_audit_dataset_and_table()
         now_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
         bucket_name = self.config["gcs"]["bucket_name"]
         raw_zone = self.config["gcs"]["zones"]["raw"].strip("/")
 
-        rows_to_insert = []
+        rows_inserted = 0
         for table_info in manifest.get("tables", []):
             tbl = table_info["table"]
             file_name = table_info["file"]
             gcs_path = f"gs://{bucket_name}/{raw_zone}/{tbl}/{file_name}"
-            rows_to_insert.append({
-                "batch_id": batch_id,
-                "source_file": file_name,
-                "table_name": tbl,
-                "gcs_raw_path": gcs_path,
-                "arrival_time": now_ts,
-                "processing_start": None,
-                "processing_end": None,
-                "records_in_file": table_info.get("row_count", 0),
-                "status": "PENDING",
-                "error_message": None
-            })
+            row_count = table_info.get("row_count", 0)
 
-        if rows_to_insert:
-            errors = self.client.insert_rows_json(self.full_table_id, rows_to_insert)
-            if errors:
-                raise RuntimeError(f"Error inserting batch control rows: {errors}")
-            print(f"Registered {len(rows_to_insert)} tables for {batch_id} in {self.full_table_id} as PENDING.")
+            # Escape single quotes to prevent SQL injection
+            file_name_esc = file_name.replace("'", "\\'")
+            tbl_esc = tbl.replace("'", "\\'")
+            gcs_path_esc = gcs_path.replace("'", "\\'")
+
+            insert_sql = f"""
+                INSERT INTO `{self.full_table_id}`
+                    (batch_id, source_file, table_name, gcs_raw_path,
+                     arrival_time, processing_start, processing_end,
+                     records_in_file, status, error_message)
+                VALUES
+                    ('{batch_id}', '{file_name_esc}', '{tbl_esc}', '{gcs_path_esc}',
+                     TIMESTAMP('{now_ts}'), NULL, NULL,
+                     {row_count}, 'PENDING', NULL)
+            """
+            job = self.client.query(insert_sql)
+            job.result()  # Wait for each INSERT to fully commit
+            rows_inserted += 1
+
+        print(f"Registered {rows_inserted} tables for {batch_id} in {self.full_table_id} as PENDING.")
 
     def update_batch_status(self, batch_id: str, status: str, error_message: str = None):
         """Update batch status (e.g. PROCESSING, COMPLETED, FAILED)."""
+        """Track batch lifecycle status using INSERT-only pattern (no UPDATE/DELETE ever).
+
+        Each status transition inserts a new sentinel row rather than updating
+        existing rows. This permanently avoids BigQuery streaming buffer conflicts,
+        since UPDATE/DELETE on streaming-buffer rows always raises BadRequest 400.
+
+        Current status for a batch is determined by the most recently inserted row.
+        The is_batch_completed() check already queries for status='COMPLETED' rows,
+        so the INSERT-only approach is fully compatible.
+        """
         now_ts = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        err_clean = (error_message or "").replace("'", "\\'")
+        err_val = f"'{err_clean}'" if error_message else "NULL"
+
         if status == "PROCESSING":
             query = f"""
                 UPDATE `{self.full_table_id}`
@@ -142,6 +164,27 @@ class BatchController:
             """
         query_job = self.client.query(query)
         query_job.result()
+            proc_start_val = f"TIMESTAMP('{now_ts}')"
+            proc_end_val = "NULL"
+        elif status in ("COMPLETED", "FAILED", "SKIPPED"):
+            proc_start_val = "NULL"
+            proc_end_val = f"TIMESTAMP('{now_ts}')"
+        else:
+            proc_start_val = "NULL"
+            proc_end_val = "NULL"
+
+        insert_sql = f"""
+            INSERT INTO `{self.full_table_id}`
+                (batch_id, source_file, table_name, gcs_raw_path,
+                 arrival_time, processing_start, processing_end,
+                 records_in_file, status, error_message)
+            VALUES
+                ('{batch_id}', '__STATUS__', '{status}', NULL,
+                 TIMESTAMP('{now_ts}'), {proc_start_val}, {proc_end_val},
+                 0, '{status}', {err_val})
+        """
+        job = self.client.query(insert_sql)
+        job.result()
         print(f"Updated status for {batch_id} -> {status}")
 
 def main():

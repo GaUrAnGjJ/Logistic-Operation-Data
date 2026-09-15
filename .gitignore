@@ -1,10 +1,62 @@
-# Python/Spark
+# ==============================================================================
+# 1. Credentials, Secrets & Sensitive Files (CRITICAL FOR SECURITY)
+# ==============================================================================
+# Google Cloud Platform service account keys
+config/gcp-key.json
+config/*key*.json
+config/*credentials*.json
+*service_account*.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Environment variables & local secrets
+.env
+.env.*
+!.env.example
+secrets/
+
+# ==============================================================================
+# 2. Local Data Directories & Storage Caches (Generated Pipeline Data)
+# ==============================================================================
+data/raw/
+data/batches/
+data/bronze/
+data/silver/
+data/quarantine/
+data/gold/
+
+# Standalone bulk data formats
+*.csv
+*.parquet
+*.parquet.crc
+*.orc
+*.avro
+
+# IDE / Tag generated files
+tags.json
+tags
+
+# ==============================================================================
+# 3. Python & Virtual Environments
+# ==============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
+
+# Virtual environments
+venv/
+.venv/
 env/
+.env/
+ENV/
+env.bak/
+venv.bak/
+
+# Packaging & Distribution
 build/
 develop-eggs/
 dist/
@@ -21,21 +73,60 @@ share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+htmlcov/
+.tox/
+.nox/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+*/.ipynb_checkpoints/*
 
-# Environment variables & Credentials (CRITICAL for security)
-.env
-config/gcp-key.json
-*.json
+# ==============================================================================
+# 4. PySpark, Hadoop & Metastore Runtime Artifacts
+# ==============================================================================
+metastore_db/
+derby.log
+spark-warehouse/
+.spark/
+checkpoint/
+checkpoints/
 
-# Data
-data/raw/*
-data/batches/*/*
-!data/raw/.gitkeep
-!data/batches/.gitkeep
+# ==============================================================================
+# 5. Power BI & Reporting Temporary Files
+# ==============================================================================
+*.pbix.tmp
+*.pbit.tmp
+*.tmp
 
-# IDEs
+# ==============================================================================
+# 6. IDEs, Editors & Operating System Files
+# ==============================================================================
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# IDEs & Editors
 .vscode/
 .idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~

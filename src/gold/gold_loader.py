@@ -162,9 +162,12 @@ class GoldLoader:
                 pass
 
         # Load DataFrame to BigQuery
-        job_config = bigquery.LoadJobConfig(
-            write_disposition=bigquery.WriteDisposition.WRITE_APPEND
+        write_disp = (
+            bigquery.WriteDisposition.WRITE_TRUNCATE
+            if is_dimension
+            else bigquery.WriteDisposition.WRITE_APPEND
         )
+        job_config = bigquery.LoadJobConfig(write_disposition=write_disp)
         load_job = self.bq_client.load_table_from_dataframe(df, full_table_id, job_config=job_config)
         load_job.result() # Wait for job completion
 
@@ -223,6 +226,15 @@ class GoldLoader:
             # dim_driver (with SCD Type 2)
             silver_drivers = self.load_silver_table(batch_id, "drivers")
             dim_driver_df = build_dim_driver(silver_drivers)
+            existing_driver_df = None
+            if batch_id != "batch_001":
+                try:
+                    q = f"SELECT * FROM `{self.project_id}.{self.gold_dataset}.dim_driver`"
+                    existing_driver_df = self.bq_client.query(q).to_dataframe()
+                    print(f"  [SCD2] Loaded {len(existing_driver_df)} existing driver records from BigQuery for Type 2 comparison.")
+                except Exception as scd_err:
+                    print(f"  [SCD2] Note: could not load existing dim_driver: {scd_err}")
+            dim_driver_df = build_dim_driver(silver_drivers, existing_dim=existing_driver_df)
             published_summary["dim_driver"] = self.publish_table("dim_driver", dim_driver_df, batch_id, is_dimension=True)
 
             # dim_truck

@@ -1,27 +1,35 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # simulate_batch.sh - Simulates the arrival and ingestion of a data batch
+# simulate_batch.sh - End-to-End Batch Simulation & Medallion Pipeline Execution
 # Usage:
 #   ./scripts/simulate_batch.sh 001
 #   ./scripts/simulate_batch.sh batch_001
+#   ./scripts/simulate_batch.sh 002
+#   ./scripts/simulate_batch.sh batch_002
 # ==============================================================================
 
 set -e
 
 BATCH_INPUT=${1:-"001"}
+BATCH_INPUT=${1:-"002"}
+FORCE_FLAG=${2:-""}
 
 # Normalize batch identifier to format: batch_00X
+# Normalize batch identifier
 if [[ "$BATCH_INPUT" =~ ^[0-9]+$ ]]; then
     BATCH_ID=$(printf "batch_%03d" "$BATCH_INPUT")
 elif [[ "$BATCH_INPUT" =~ ^batch_[0-9]+$ ]]; then
     BATCH_ID="$BATCH_INPUT"
 else
     echo "ERROR: Invalid batch format '$BATCH_INPUT'. Use '001' or 'batch_001'."
+    echo "ERROR: Invalid batch format '$BATCH_INPUT'. Use '002' or 'batch_002'."
     exit 1
 fi
 
 echo "=========================================================="
 echo " Starting Batch Simulation: $BATCH_ID"
+echo " Starting End-to-End Simulation Pipeline: $BATCH_ID"
 echo "=========================================================="
 
 # 1. Check if batches exist, if not generate them
@@ -30,6 +38,9 @@ if [ ! -d "data/batches/$BATCH_ID" ]; then
     python src/ingestion/batch_splitter.py
 else
     echo "[1/4] Local batch files verified in data/batches/$BATCH_ID"
+CMD_ARGS=("src/orchestration/pipeline_orchestrator.py" "--batch_id" "$BATCH_ID")
+if [ "$FORCE_FLAG" == "--force" ]; then
+    CMD_ARGS+=("--force")
 fi
 
 # 2. Idempotency check via BigQuery Batch Controller
@@ -38,6 +49,7 @@ set +e
 python src/ingestion/batch_controller.py --check "$BATCH_ID"
 CHECK_STATUS=$?
 set -e
+python "${CMD_ARGS[@]}"
 
 if [ $CHECK_STATUS -ne 0 ]; then
     echo "[IDEMPOTENCY] Batch $BATCH_ID has ALREADY been COMPLETED in BigQuery."
@@ -56,4 +68,6 @@ python src/ingestion/batch_controller.py --register "$BATCH_ID"
 echo "=========================================================="
 echo " Batch Simulation for $BATCH_ID completed successfully!"
 echo " GCS Raw Zone and Manifests are ready for Bronze processing."
+echo " Simulation Pipeline for $BATCH_ID Completed Successfully!"
+echo " Data is fully published in BigQuery logistics_gold."
 echo "=========================================================="
